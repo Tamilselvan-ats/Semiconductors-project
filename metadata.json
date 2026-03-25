@@ -1,0 +1,5 @@
+{
+  "name": "Quantum Solar Cell Simulator",
+  "description": "An interactive physics simulation demonstrating the Photovoltaic Effect and quantum theory of solar cells.",
+  "requestFramePermissions": []
+}
