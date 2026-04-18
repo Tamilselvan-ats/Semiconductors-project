@@ -55,6 +55,9 @@ interface Material {
 const MATERIALS: Material[] = [
   { name: 'Silicon (Si)', eg: 1.12 },
   { name: 'Gallium Arsenide (GaAs)', eg: 1.42 },
+  { name: 'Germanium (Ge)', eg: 0.67 },
+  { name: 'Indium Phosphide (InP)', eg: 1.34 },
+  { name: 'Cadmium Telluride (CdTe)', eg: 1.45 },
 ];
 
 type Tab = 'dashboard' | 'step-by-step';
