@@ -582,6 +582,9 @@ export default function App() {
                     intensity={irradiance} 
                     theme={theme} 
                     wavelength={wavelength}
+                    temperature={temperature}
+                    solarAngle={solarAngle}
+                    material={material}
                   />
                 </div>
               </div>
@@ -921,7 +924,12 @@ function EnvVar({ label, value, theme }: { label: string, value: string, theme: 
   );
 }
 
-function MechanismWidget({ isGenerating, intensity, theme, wavelength }: { isGenerating: boolean, intensity: number, theme: Theme, wavelength: number }) {
+function MechanismWidget({ 
+  isGenerating, intensity, theme, wavelength, temperature, solarAngle, material 
+}: { 
+  isGenerating: boolean, intensity: number, theme: Theme, wavelength: number, 
+  temperature: number, solarAngle: number, material: Material 
+}) {
   const photonCount = Math.min(12, Math.max(2, Math.floor(intensity / 100)));
   
   // Realistic photon color based on wavelength
@@ -937,15 +945,47 @@ function MechanismWidget({ isGenerating, intensity, theme, wavelength }: { isGen
 
   const photonColor = getPhotonColor(wavelength);
 
+  // Material-specific colors
+  const getMaterialColor = (name: string) => {
+    if (name.includes('Silicon')) return "from-slate-700 to-slate-900";
+    if (name.includes('Gallium Arsenide')) return "from-blue-900 to-slate-900";
+    if (name.includes('Germanium')) return "from-slate-800 to-black";
+    if (name.includes('Indium Phosphide')) return "from-indigo-900 to-slate-900";
+    if (name.includes('Cadmium Telluride')) return "from-teal-900 to-slate-900";
+    return "from-slate-800 to-slate-900";
+  };
+
+  const matColor = getMaterialColor(material.name);
+
+  // Calculate lattice jitter based on temperature (K)
+  const jitterIntensity = Math.max(0, (temperature - 273.15) / 50);
+
   return (
     <div className="relative h-[320px] w-full flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-slate-950 border border-white/5 shadow-inner">
+      {/* Heat Haze Effect (Temperature) */}
+      {temperature > 300 && (
+        <motion.div 
+          animate={{ opacity: [0.1, 0.2, 0.1], y: [0, -5, 0] }}
+          transition={{ duration: 0.5, repeat: Infinity }}
+          className="absolute inset-0 bg-red-500/5 mix-blend-screen z-0"
+        />
+      )}
+
       {/* Sunlight Flare */}
       <div className="absolute top-0 w-full h-8 bg-gradient-to-b from-yellow-500/10 to-transparent z-0" />
       
       {/* Crystal Lattice Background (Atoms) */}
       <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 gap-8 opacity-[0.03] p-12">
         {Array.from({ length: 36 }).map((_, i) => (
-          <div key={`atom-${i}`} className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.5)]" />
+          <motion.div 
+            key={`atom-${i}`}
+            animate={{ 
+              x: [0, (Math.random() - 0.5) * jitterIntensity, 0],
+              y: [0, (Math.random() - 0.5) * jitterIntensity, 0]
+            }}
+            transition={{ duration: 0.1, repeat: Infinity }}
+            className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.5)]" 
+          />
         ))}
       </div>
 
@@ -967,52 +1007,59 @@ function MechanismWidget({ isGenerating, intensity, theme, wavelength }: { isGen
         </svg>
       </div>
 
-      {/* Photons (Incoming Light) */}
+      {/* Photons (Incoming Light with Angle) */}
       <AnimatePresence>
-        {Array.from({ length: photonCount }).map((_, i) => (
-          <div key={`photon-group-${i}`} className="absolute top-0">
-            <motion.div
-              initial={{ y: -50, x: (i - photonCount/2) * 25, opacity: 0 }}
-              animate={{ 
-                y: [0, 200], 
-                opacity: [0, 1, 1, 0],
-                scale: isGenerating ? 1 : [1, 1.2, 0.5]
-              }}
-              transition={{ 
-                duration: 2, 
-                repeat: Infinity, 
-                delay: i * 0.3,
-                ease: "linear"
-              }}
-              className={cn(
-                "w-[2px] h-10 rounded-full blur-[1px]",
-                isGenerating ? photonColor : "bg-white/10"
-              )}
-            >
-              {/* Collision Burst Effect */}
-              {isGenerating && (
-                <motion.div 
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: [0, 2, 0], opacity: [0, 1, 0] }}
-                  transition={{ duration: 0.3, delay: 1.8, repeat: Infinity, repeatDelay: 1.7 }}
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white/50 blur-sm"
-                />
-              )}
-            </motion.div>
-          </div>
-        ))}
+        {Array.from({ length: photonCount }).map((_, i) => {
+          const xOffset = (i - photonCount/2) * 25;
+          const tiltX = Math.tan((solarAngle * Math.PI) / 180) * 150;
+          
+          return (
+            <div key={`photon-group-${i}`} className="absolute top-0">
+              <motion.div
+                initial={{ y: -50, x: xOffset, opacity: 0 }}
+                animate={{ 
+                  y: [0, 200], 
+                  x: [xOffset, xOffset + tiltX],
+                  opacity: [0, 1, 1, 0],
+                  scale: isGenerating ? 1 : [1, 1.2, 0.5]
+                }}
+                transition={{ 
+                  duration: 2, 
+                  repeat: Infinity, 
+                  delay: i * 0.3,
+                  ease: "linear"
+                }}
+                className={cn(
+                  "w-[2px] h-10 rounded-full blur-[1px]",
+                  isGenerating ? photonColor : "bg-white/10"
+                )}
+                style={{ rotate: `${solarAngle}deg` }}
+              >
+                {/* Collision Burst Effect */}
+                {isGenerating && (
+                  <motion.div 
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: [0, 2, 0], opacity: [0, 1, 0] }}
+                    transition={{ duration: 0.3, delay: 1.8, repeat: Infinity, repeatDelay: 1.7 }}
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white/50 blur-sm"
+                  />
+                )}
+              </motion.div>
+            </div>
+          );
+        })}
       </AnimatePresence>
 
-      {/* P-N Junction Device */}
+      {/* P-N Junction Device (Material Specific) */}
       <div className="relative mt-20 w-4/5 h-20 rounded-xl overflow-hidden shadow-2xl z-10 border border-white/10 group">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900" />
+        <div className={cn("absolute inset-0 bg-gradient-to-br", matColor)} />
         
         {/* N-Type Layer */}
         <div className={cn(
           "h-1/3 w-full flex items-center justify-center border-b border-white/5 transition-colors",
           theme === 'dark' ? "bg-blue-600/10" : "bg-blue-500/5"
         )}>
-          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-blue-400/40">N-Type Layer</span>
+          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-blue-400/40">N-Type Layer ({material.name.split(' ')[0]})</span>
         </div>
 
         {/* Depletion Region (P-N Junction) */}
@@ -1087,7 +1134,7 @@ function MechanismWidget({ isGenerating, intensity, theme, wavelength }: { isGen
            <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase">E-H Pair</span>
         </div>
         <div className="text-[8px] font-black text-white/20 tracking-[0.2em] uppercase bg-white/5 px-2 py-1 rounded">
-          Simulation ID: 887-A
+          {material.name.toUpperCase()} CORE
         </div>
       </div>
     </div>
