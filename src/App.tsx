@@ -776,6 +776,14 @@ export default function App() {
                       <p className="text-xs italic">
                         As temperature increases, two things happen: the thermal voltage <InlineMath math="V_{th} = kT/q" /> increases, but the saturation current <InlineMath math="I_0" /> increases <b>exponentially</b>. Because <InlineMath math="I_0" /> is in the denominator of the log term, its massive growth outweighs the linear increase of <InlineMath math="T" />. This results in a net decrease in <InlineMath math="V_{oc}" />, typically around <InlineMath math="-2.2\text{mV/K}" /> for Silicon, leading to the thermal "collapse" you see in the curve.
                       </p>
+                      <div className="mt-4 p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
+                        <h5 className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Graph Visual Guide:</h5>
+                        <ul className="text-[10px] list-disc pl-4 space-y-1 text-slate-500 dark:text-white/40">
+                          <li>The <b>Dashed Vertical Line</b> is the benchmark (25°C).</li>
+                          <li>The <b>X-Intercept Shift</b> to the left indicates Voltage Collapse.</li>
+                          <li>A <b>Shrinking Area</b> under the curve equals reduced Efficiency.</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
