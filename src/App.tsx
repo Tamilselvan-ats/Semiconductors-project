@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   XAxis, 
   YAxis, 
@@ -132,6 +133,12 @@ export default function App() {
 
     const fillFactor = (voc > 0 && isc > 0) ? (pMax / (voc * isc)) * 100 : 0;
 
+    // Efficiency Calculation: Pmax / (Irradiance * Area)
+    // Assuming current scaling was based on ~1cm² area where 40mA corresponds to 1000W/m²
+    // Pin = Irradiance (W/m²) * Area (m²) = Irradiance * 0.0001
+    const pIn = irradiance * 0.0001;
+    const efficiency = pIn > 0 ? (pMax / pIn) * 100 : 0;
+
     // --- Baseline Reference at T=298K ---
     // Calculate Voc at reference temperature for comparison
     const thermalVoltageRef = (K * T_REF) / Q;
@@ -149,6 +156,7 @@ export default function App() {
       pMax,
       vMax,
       fillFactor,
+      efficiency,
       ivData,
       thermalVoltage,
       i0,
@@ -453,6 +461,7 @@ export default function App() {
                       </span>
                     </div>
                     <SummaryRow label="I_sc" value={`${(physics.isc * 1000).toFixed(1)} mA`} sub="Short Circuit Current" theme={theme} />
+                    <SummaryRow label="Efficiency" value={`${physics.efficiency.toFixed(1)}%`} sub="Overall Conversion" theme={theme} />
                     <SummaryRow label="Fill Factor" value={`${physics.fillFactor.toFixed(1)}%`} sub="Efficiency Metric" theme={theme} />
                   </div>
                   <div className={cn(
@@ -468,91 +477,108 @@ export default function App() {
               </div>
 
               {/* Panel B: The I-V Graph */}
-              <div className={cn(
-                "rounded-3xl p-8 border transition-colors",
-                theme === 'dark' ? "bg-[#151921] border-white/10" : "bg-white border-slate-200 shadow-sm"
-              )}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-blue-500" /> Panel B: I-V Characteristic Curve
-                  </h2>
-                  <div className="flex flex-wrap gap-4">
-                    <LegendItem label="Current (I)" color="#3b82f6" theme={theme} />
-                    <LegendItem label="Power (P)" color="#3b82f640" isDashed theme={theme} />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className={cn(
+                  "lg:col-span-2 rounded-3xl p-8 border transition-colors",
+                  theme === 'dark' ? "bg-[#151921] border-white/10" : "bg-white border-slate-200 shadow-sm"
+                )}>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-blue-500" /> Panel B: I-V Characteristic Curve
+                    </h2>
+                    <div className="flex flex-wrap gap-4">
+                      <LegendItem label="Current (I)" color="#3b82f6" theme={theme} />
+                      <LegendItem label="Power (P)" color="#3b82f640" isDashed theme={theme} />
+                    </div>
+                  </div>
+
+                  <div className="h-[400px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={physics.ivData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? "#ffffff10" : "#00000010"} vertical={false} />
+                        <XAxis 
+                          dataKey="voltage" 
+                          stroke={theme === 'dark' ? "#ffffff40" : "#00000040"} 
+                          fontSize={10} 
+                          tickFormatter={(v) => `${v}V`}
+                        />
+                        <YAxis 
+                          stroke={theme === 'dark' ? "#ffffff40" : "#00000040"} 
+                          fontSize={10} 
+                          tickFormatter={(v) => `${(v * 1000).toFixed(0)}mA`}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: theme === 'dark' ? '#151921' : '#ffffff', 
+                            borderColor: theme === 'dark' ? '#ffffff10' : '#00000010', 
+                            borderRadius: '12px', 
+                            fontSize: '12px',
+                            color: theme === 'dark' ? '#fff' : '#000'
+                          }}
+                          itemStyle={{ color: '#3b82f6' }}
+                          formatter={(value: number, name: string) => [
+                            name === 'current' ? `${(value * 1000).toFixed(2)} mA` : `${(value * 1000).toFixed(2)} mW`,
+                            name === 'current' ? 'Current' : 'Power'
+                          ]}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="current" 
+                          stroke="#3b82f6" 
+                          strokeWidth={3}
+                          fillOpacity={1} 
+                          fill="url(#colorCurrent)" 
+                          animationDuration={500}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="power" 
+                          stroke="#3b82f640" 
+                          strokeDasharray="5 5"
+                          fill="transparent"
+                          animationDuration={500}
+                        />
+                        {physics.vMax > 0 && (
+                          <ReferenceLine x={physics.vMax} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: 'MPP', fill: '#3b82f6', fontSize: 10, position: 'top' }} />
+                        )}
+                        {physics.vocRef > 0 && temperature !== 298.15 && (
+                          <ReferenceLine 
+                            x={physics.vocRef} 
+                            stroke={theme === 'dark' ? "#ffffff20" : "#00000020"} 
+                            strokeDasharray="5 5" 
+                            label={{ 
+                              value: 'Baseline (25°C)', 
+                              fill: theme === 'dark' ? '#ffffff30' : '#00000030', 
+                              fontSize: 10, 
+                              position: 'insideTopRight' 
+                            }} 
+                          />
+                        )}
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
 
-                <div className="h-[400px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={physics.ivData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? "#ffffff10" : "#00000010"} vertical={false} />
-                      <XAxis 
-                        dataKey="voltage" 
-                        stroke={theme === 'dark' ? "#ffffff40" : "#00000040"} 
-                        fontSize={10} 
-                        tickFormatter={(v) => `${v}V`}
-                      />
-                      <YAxis 
-                        stroke={theme === 'dark' ? "#ffffff40" : "#00000040"} 
-                        fontSize={10} 
-                        tickFormatter={(v) => `${(v * 1000).toFixed(0)}mA`}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: theme === 'dark' ? '#151921' : '#ffffff', 
-                          borderColor: theme === 'dark' ? '#ffffff10' : '#00000010', 
-                          borderRadius: '12px', 
-                          fontSize: '12px',
-                          color: theme === 'dark' ? '#fff' : '#000'
-                        }}
-                        itemStyle={{ color: '#3b82f6' }}
-                        formatter={(value: number, name: string) => [
-                          name === 'current' ? `${(value * 1000).toFixed(2)} mA` : `${(value * 1000).toFixed(2)} mW`,
-                          name === 'current' ? 'Current' : 'Power'
-                        ]}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="current" 
-                        stroke="#3b82f6" 
-                        strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#colorCurrent)" 
-                        animationDuration={500}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="power" 
-                        stroke="#3b82f640" 
-                        strokeDasharray="5 5"
-                        fill="transparent"
-                        animationDuration={500}
-                      />
-                      {physics.vMax > 0 && (
-                        <ReferenceLine x={physics.vMax} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: 'MPP', fill: '#3b82f6', fontSize: 10, position: 'top' }} />
-                      )}
-                      {physics.vocRef > 0 && temperature !== 298.15 && (
-                        <ReferenceLine 
-                          x={physics.vocRef} 
-                          stroke={theme === 'dark' ? "#ffffff20" : "#00000020"} 
-                          strokeDasharray="5 5" 
-                          label={{ 
-                            value: 'Baseline (25°C)', 
-                            fill: theme === 'dark' ? '#ffffff30' : '#00000030', 
-                            fontSize: 10, 
-                            position: 'insideTopRight' 
-                          }} 
-                        />
-                      )}
-                    </AreaChart>
-                  </ResponsiveContainer>
+                <div className={cn(
+                  "rounded-3xl p-8 border transition-colors",
+                  theme === 'dark' ? "bg-[#151921] border-white/10" : "bg-white border-slate-200 shadow-sm"
+                )}>
+                  <h2 className="text-lg font-semibold flex items-center gap-2 mb-8">
+                    <Zap className="w-5 h-5 text-blue-500" /> Mechanism
+                  </h2>
+                  <MechanismWidget 
+                    isGenerating={physics.isPowerGenerated} 
+                    intensity={irradiance} 
+                    theme={theme} 
+                  />
                 </div>
+              </div>
 
                 <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className={cn(
@@ -594,7 +620,6 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-12 pb-20">
               <header className="space-y-4">
@@ -886,6 +911,88 @@ function EnvVar({ label, value, theme }: { label: string, value: string, theme: 
     <div className="space-y-1">
       <p className={cn("text-[9px] uppercase font-bold tracking-wider", theme === 'dark' ? "text-white/30" : "text-slate-400")}>{label}</p>
       <p className="text-sm font-mono text-blue-500">{value}</p>
+    </div>
+  );
+}
+
+function MechanismWidget({ isGenerating, intensity, theme }: { isGenerating: boolean, intensity: number, theme: Theme }) {
+  const photonCount = Math.max(1, Math.floor(intensity / 200));
+  
+  return (
+    <div className="relative h-64 w-full flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-950/20 border border-white/5">
+      {/* Light Rays */}
+      <AnimatePresence>
+        {Array.from({ length: photonCount }).map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ y: -50, x: (i - photonCount/2) * 30, opacity: 0 }}
+            animate={{ 
+              y: 120, 
+              opacity: [0, 1, 1, 0],
+              scale: isGenerating ? 1 : [1, 1.2, 0]
+            }}
+            transition={{ 
+              duration: 1.5, 
+              repeat: Infinity, 
+              delay: i * 0.2,
+              ease: "linear"
+            }}
+            className={cn(
+              "absolute w-1 h-8 rounded-full",
+              isGenerating ? "bg-yellow-400 blur-[2px]" : "bg-blue-400/30"
+            )}
+          />
+        ))}
+      </AnimatePresence>
+
+      {/* Semiconductor Layer */}
+      <div className={cn(
+        "absolute bottom-20 w-4/5 h-12 rounded-lg border-2 z-10 flex items-center justify-around",
+        theme === 'dark' ? "bg-blue-900/40 border-blue-500/30" : "bg-blue-100/40 border-blue-500/30"
+      )}>
+        <span className="text-[8px] font-bold uppercase tracking-widest text-blue-500/50">n-type</span>
+        <span className="text-[8px] font-bold uppercase tracking-widest text-blue-500/50">p-junction</span>
+      </div>
+
+      {/* Charge Carriers */}
+      {isGenerating && (
+        <AnimatePresence>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <motion.div
+              key={`e-${i}`}
+              initial={{ x: -20 + (i * 10), y: 120, opacity: 0 }}
+              animate={{ 
+                x: 80, 
+                opacity: [0, 1, 0] 
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity, 
+                delay: i * 0.5 
+              }}
+              className="absolute w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] z-20"
+            />
+          ))}
+        </AnimatePresence>
+      )}
+
+      {/* Labels */}
+      <div className="absolute top-4 left-4 flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <div className={cn("w-2 h-2 rounded-full", isGenerating ? "bg-yellow-400" : "bg-blue-400/30")} />
+          <span className="text-[8px] font-bold text-white/40 tracking-wider">PHOTONS</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_5px_rgba(30,144,255,1)]" />
+          <span className="text-[8px] font-bold text-white/40 tracking-wider">ELECTRONS</span>
+        </div>
+      </div>
+      
+      {!isGenerating && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-500/5 backdrop-blur-[1px] z-30">
+          <p className="text-red-500 text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full uppercase tracking-tighter">Threshold not met</p>
+        </div>
+      )}
     </div>
   );
 }
