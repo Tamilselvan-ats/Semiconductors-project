@@ -132,10 +132,19 @@ export default function App() {
 
     const fillFactor = (voc > 0 && isc > 0) ? (pMax / (voc * isc)) * 100 : 0;
 
+    // --- Baseline Reference at T=298K ---
+    // Calculate Voc at reference temperature for comparison
+    const thermalVoltageRef = (K * T_REF) / Q;
+    const i0Ref = I0_REF * 1; // Exp term is 1 because T = T_REF
+    const vocRef = iph > 0 ? N * thermalVoltageRef * Math.log(iph / i0Ref + 1) : 0;
+    const vocLoss = (voc - vocRef) * 1000; // in mV
+
     return {
       ePhoton,
       isPowerGenerated,
       voc,
+      vocRef,
+      vocLoss,
       isc,
       pMax,
       vMax,
@@ -391,11 +400,16 @@ export default function App() {
                         {physics.isPowerGenerated ? (
                           <div className="space-y-3">
                             <p className="text-sm text-green-600 font-bold">Success: Photoelectric effect activated.</p>
+                            {temperature > 298.15 && (
+                              <div className="flex items-center gap-2 text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+                                <AlertCircle className="w-3 h-3" /> Thermal Loss: {Math.abs(physics.vocLoss).toFixed(1)} mV
+                              </div>
+                            )}
                             <p className={cn(
                               "text-xs leading-relaxed",
                               theme === 'dark' ? "text-white/50" : "text-slate-500"
                             )}>
-                              The incident photons have sufficient energy to excite electrons from the valence band to the conduction band.
+                              The incident photons have sufficient energy to excite electrons.
                             </p>
                           </div>
                         ) : (
@@ -429,6 +443,15 @@ export default function App() {
                   </h2>
                   <div className="space-y-6">
                     <SummaryRow label="V_oc" value={`${physics.voc.toFixed(3)} V`} sub="Open Circuit Voltage" theme={theme} />
+                    <div className={cn(
+                      "flex justify-between items-center px-3 py-2 rounded-xl",
+                      physics.vocLoss < 0 ? "bg-red-500/5 text-red-500" : "bg-green-500/5 text-green-500"
+                    )}>
+                      <span className="text-[9px] font-bold uppercase tracking-wider">Thermal Drift</span>
+                      <span className="text-sm font-bold font-mono">
+                        {physics.vocLoss > 0 ? "+" : ""}{physics.vocLoss.toFixed(1)} mV
+                      </span>
+                    </div>
                     <SummaryRow label="I_sc" value={`${(physics.isc * 1000).toFixed(1)} mA`} sub="Short Circuit Current" theme={theme} />
                     <SummaryRow label="Fill Factor" value={`${physics.fillFactor.toFixed(1)}%`} sub="Efficiency Metric" theme={theme} />
                   </div>
@@ -513,6 +536,19 @@ export default function App() {
                       />
                       {physics.vMax > 0 && (
                         <ReferenceLine x={physics.vMax} stroke="#3b82f6" strokeDasharray="3 3" label={{ value: 'MPP', fill: '#3b82f6', fontSize: 10, position: 'top' }} />
+                      )}
+                      {physics.vocRef > 0 && temperature !== 298.15 && (
+                        <ReferenceLine 
+                          x={physics.vocRef} 
+                          stroke={theme === 'dark' ? "#ffffff20" : "#00000020"} 
+                          strokeDasharray="5 5" 
+                          label={{ 
+                            value: 'Baseline (25°C)', 
+                            fill: theme === 'dark' ? '#ffffff30' : '#00000030', 
+                            fontSize: 10, 
+                            position: 'insideTopRight' 
+                          }} 
+                        />
                       )}
                     </AreaChart>
                   </ResponsiveContainer>
