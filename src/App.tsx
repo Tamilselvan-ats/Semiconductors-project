@@ -716,7 +716,7 @@ export default function App() {
                   theme === 'dark' ? "bg-blue-500/5 border-blue-500/20" : "bg-blue-50 border-blue-100"
                 )}>
                   <h3 className="text-xl font-bold flex items-center gap-2">
-                    <BookOpen className="w-6 h-6 text-blue-500" /> Theoretical Derivation
+                    <BookOpen className="w-6 h-6 text-blue-500" /> Theoretical Derivation & Thermal Effects
                   </h3>
                   <div className={cn(
                     "text-sm leading-relaxed space-y-4",
@@ -729,11 +729,18 @@ export default function App() {
                     <p>
                       At open-circuit conditions (<InlineMath math="I = 0" />), we can solve for <InlineMath math="V_{oc}" />:
                     </p>
-                    <BlockMath math={`0 = I_{ph} - I_0 \\left[ \\exp\\left(\\frac{qV_{oc}}{nkT}\\right) - 1 \\right] \\implies \\frac{I_{ph}}{I_0} + 1 = \\exp\\left(\\frac{qV_{oc}}{nkT}\\right)`} />
-                    <p>
-                      Taking the natural logarithm of both sides yields the final expression used in our simulation:
-                    </p>
                     <BlockMath math={`V_{oc} = \\frac{nkT}{q} \\ln\\left(\\frac{I_{ph}}{I_0} + 1\\right)`} />
+                    <div className={cn(
+                      "p-4 rounded-xl border mt-4",
+                      theme === 'dark' ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-100"
+                    )}>
+                      <h4 className="font-bold text-red-600 mb-2 flex items-center gap-2 text-xs uppercase tracking-wider">
+                        <AlertCircle className="w-4 h-4" /> Why does Voltage "Collapse" at High Temperatures?
+                      </h4>
+                      <p className="text-xs italic">
+                        As temperature increases, two things happen: the thermal voltage <InlineMath math="V_{th} = kT/q" /> increases, but the saturation current <InlineMath math="I_0" /> increases <b>exponentially</b>. Because <InlineMath math="I_0" /> is in the denominator of the log term, its massive growth outweighs the linear increase of <InlineMath math="T" />. This results in a net decrease in <InlineMath math="V_{oc}" />, typically around <InlineMath math="-2.2\text{mV/K}" /> for Silicon, leading to the thermal "collapse" you see in the curve.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -752,10 +759,21 @@ function ControlSlider({ label, value, unit, min, max, step, onChange, theme }: 
   onChange: (v: number) => void, theme: Theme 
 }) {
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+    <div className="space-y-3">
+      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
         <span className={theme === 'dark' ? "text-white/60" : "text-slate-400"}>{label}</span>
-        <span className="font-mono text-blue-500">{value} {unit}</span>
+        <div className="flex items-center gap-2">
+          <input 
+            type="number"
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className={cn(
+              "w-16 px-2 py-1 rounded-md font-mono text-blue-500 text-[11px] border focus:outline-none focus:ring-1 focus:ring-blue-500/50",
+              theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+            )}
+          />
+          <span className="text-blue-500/50">{unit}</span>
+        </div>
       </div>
       <input 
         type="range" min={min} max={max} step={step} value={value}
