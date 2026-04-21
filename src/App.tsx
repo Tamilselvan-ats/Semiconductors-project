@@ -961,7 +961,66 @@ function MechanismWidget({
   const jitterIntensity = Math.max(0, (temperature - 273.15) / 50);
 
   return (
-    <div className="relative h-[320px] w-full flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-slate-950 border border-white/5 shadow-inner">
+    <div className="relative h-[420px] w-full flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-slate-950 border border-white/5 shadow-inner">
+      {/* Energy Band Diagram (Section Overlay) */}
+      <div className="absolute right-6 top-6 bottom-6 w-32 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center justify-between p-4 z-40 backdrop-blur-md">
+        <div className="text-[7px] font-black text-white/40 tracking-[0.2em] uppercase mb-2">Energy Bands</div>
+        
+        {/* Conduction Band */}
+        <div className="w-full space-y-1">
+          <div className="h-4 w-full bg-blue-500/20 rounded border border-blue-500/30 flex items-center justify-center relative overflow-hidden">
+             <div className="absolute inset-0 bg-blue-500/10 animate-pulse" />
+             <span className="text-[6px] font-bold text-blue-300 z-10">CONDUCTION</span>
+             {isGenerating && (
+                <motion.div 
+                  initial={{ x: -20 }}
+                  animate={{ x: 50 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="absolute w-1 h-1 bg-blue-400 rounded-full shadow-[0_0_5px_#60a5fa]" 
+                />
+             )}
+          </div>
+        </div>
+
+        {/* Band Gap (Dynamic Spacer) */}
+        <div 
+          className="w-full flex items-center justify-center relative overflow-hidden group"
+          style={{ height: `${material.eg * 40}px` }}
+        >
+          <div className="absolute left-1/2 -translate-x-1/2 h-full w-[1px] bg-white/10 dashed" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+             <div className="text-[8px] font-mono text-yellow-500 font-bold">{material.eg} eV</div>
+             <div className="text-[5px] text-white/30 uppercase tracking-tighter">Forbidden Gap</div>
+          </div>
+
+          {/* Electron Jump Animation */}
+          {isGenerating && (
+            <motion.div
+              initial={{ y: material.eg * 20, opacity: 0 }}
+              animate={{ y: -material.eg * 20, opacity: [0, 1, 0] }}
+              transition={{ duration: 1, repeat: Infinity, ease: "anticipate" }}
+              className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white] z-50"
+            />
+          )}
+        </div>
+
+        {/* Valence Band */}
+        <div className="w-full space-y-1">
+          <div className="h-8 w-full bg-red-500/20 rounded border border-red-500/30 flex items-center justify-center relative overflow-hidden">
+             <span className="text-[6px] font-bold text-red-300 z-10">VALENCE</span>
+             <div className="absolute inset-x-0 bottom-0 h-1/2 bg-red-500/10" />
+             {/* Filled states */}
+             <div className="absolute inset-0 grid grid-cols-4 grid-rows-2 gap-1 p-1 opacity-20">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="w-full h-full bg-red-400 rounded-full" />
+                ))}
+             </div>
+          </div>
+        </div>
+
+        <div className="text-[6px] font-mono text-white/20 mt-2">Energy (E) →</div>
+      </div>
+
       {/* Heat Haze Effect (Temperature) */}
       {temperature > 300 && (
         <motion.div 
