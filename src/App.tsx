@@ -449,6 +449,11 @@ export default function App() {
                   <h2 className="text-lg font-semibold flex items-center gap-2 mb-6">
                     <Activity className="w-5 h-5 text-blue-500" /> Panel C: Metrics
                   </h2>
+                  
+                  <div className="flex justify-center mb-8">
+                    <EfficiencyDisplayer value={physics.efficiency} theme={theme} />
+                  </div>
+
                   <div className="space-y-6">
                     <SummaryRow label="V_oc" value={`${physics.voc.toFixed(3)} V`} sub="Open Circuit Voltage" theme={theme} />
                     <div className={cn(
@@ -576,6 +581,7 @@ export default function App() {
                     isGenerating={physics.isPowerGenerated} 
                     intensity={irradiance} 
                     theme={theme} 
+                    wavelength={wavelength}
                   />
                 </div>
               </div>
@@ -915,84 +921,217 @@ function EnvVar({ label, value, theme }: { label: string, value: string, theme: 
   );
 }
 
-function MechanismWidget({ isGenerating, intensity, theme }: { isGenerating: boolean, intensity: number, theme: Theme }) {
-  const photonCount = Math.max(1, Math.floor(intensity / 200));
+function MechanismWidget({ isGenerating, intensity, theme, wavelength }: { isGenerating: boolean, intensity: number, theme: Theme, wavelength: number }) {
+  const photonCount = Math.min(12, Math.max(2, Math.floor(intensity / 100)));
   
-  return (
-    <div className="relative h-64 w-full flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-950/20 border border-white/5">
-      {/* Light Rays */}
-      <AnimatePresence>
-        {Array.from({ length: photonCount }).map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ y: -50, x: (i - photonCount/2) * 30, opacity: 0 }}
-            animate={{ 
-              y: 120, 
-              opacity: [0, 1, 1, 0],
-              scale: isGenerating ? 1 : [1, 1.2, 0]
-            }}
-            transition={{ 
-              duration: 1.5, 
-              repeat: Infinity, 
-              delay: i * 0.2,
-              ease: "linear"
-            }}
-            className={cn(
-              "absolute w-1 h-8 rounded-full",
-              isGenerating ? "bg-yellow-400 blur-[2px]" : "bg-blue-400/30"
-            )}
-          />
-        ))}
-      </AnimatePresence>
+  // Realistic photon color based on wavelength
+  const getPhotonColor = (wl: number) => {
+    if (wl < 400) return "bg-violet-500 shadow-[0_0_10px_#8b5cf6]"; 
+    if (wl < 450) return "bg-blue-500 shadow-[0_0_10px_#3b82f6]";
+    if (wl < 550) return "bg-green-500 shadow-[0_0_10px_#22c55e]";
+    if (wl < 600) return "bg-yellow-400 shadow-[0_0_10px_#fbbf24]";
+    if (wl < 700) return "bg-orange-500 shadow-[0_0_10px_#f97316]";
+    if (wl < 800) return "bg-red-500 shadow-[0_0_10px_#ef4444]";
+    return "bg-red-900 shadow-[0_0_10px_#450a0a]"; // Infrared
+  };
 
-      {/* Semiconductor Layer */}
-      <div className={cn(
-        "absolute bottom-20 w-4/5 h-12 rounded-lg border-2 z-10 flex items-center justify-around",
-        theme === 'dark' ? "bg-blue-900/40 border-blue-500/30" : "bg-blue-100/40 border-blue-500/30"
-      )}>
-        <span className="text-[8px] font-bold uppercase tracking-widest text-blue-500/50">n-type</span>
-        <span className="text-[8px] font-bold uppercase tracking-widest text-blue-500/50">p-junction</span>
+  const photonColor = getPhotonColor(wavelength);
+
+  return (
+    <div className="relative h-[320px] w-full flex flex-col items-center justify-center overflow-hidden rounded-3xl bg-slate-950 border border-white/5 shadow-inner">
+      {/* Sunlight Flare */}
+      <div className="absolute top-0 w-full h-8 bg-gradient-to-b from-yellow-500/10 to-transparent z-0" />
+      
+      {/* Crystal Lattice Background (Atoms) */}
+      <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 gap-8 opacity-[0.03] p-12">
+        {Array.from({ length: 36 }).map((_, i) => (
+          <div key={`atom-${i}`} className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.5)]" />
+        ))}
       </div>
 
-      {/* Charge Carriers */}
-      {isGenerating && (
-        <AnimatePresence>
-          {Array.from({ length: 4 }).map((_, i) => (
+      {/* External Circuit (Wires) */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <svg className="w-full h-full opacity-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="M 10 75 L 5 75 L 5 25 L 95 25 L 95 75 L 90 75" fill="none" stroke="#3b82f6" strokeWidth="0.5" strokeDasharray="1 1" />
+          {isGenerating && (
+            <motion.path 
+              d="M 10 75 L 5 75 L 5 25 L 95 25 L 95 75 L 90 75" 
+              fill="none" 
+              stroke="#60a5fa" 
+              strokeWidth="0.8" 
+              strokeDasharray="2 4"
+              animate={{ strokeDashoffset: [20, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            />
+          )}
+        </svg>
+      </div>
+
+      {/* Photons (Incoming Light) */}
+      <AnimatePresence>
+        {Array.from({ length: photonCount }).map((_, i) => (
+          <div key={`photon-group-${i}`} className="absolute top-0">
             <motion.div
-              key={`e-${i}`}
-              initial={{ x: -20 + (i * 10), y: 120, opacity: 0 }}
+              initial={{ y: -50, x: (i - photonCount/2) * 25, opacity: 0 }}
               animate={{ 
-                x: 80, 
-                opacity: [0, 1, 0] 
+                y: [0, 200], 
+                opacity: [0, 1, 1, 0],
+                scale: isGenerating ? 1 : [1, 1.2, 0.5]
               }}
               transition={{ 
                 duration: 2, 
                 repeat: Infinity, 
-                delay: i * 0.5 
+                delay: i * 0.3,
+                ease: "linear"
               }}
-              className="absolute w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] z-20"
+              className={cn(
+                "w-[2px] h-10 rounded-full blur-[1px]",
+                isGenerating ? photonColor : "bg-white/10"
+              )}
+            >
+              {/* Collision Burst Effect */}
+              {isGenerating && (
+                <motion.div 
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 2, 0], opacity: [0, 1, 0] }}
+                  transition={{ duration: 0.3, delay: 1.8, repeat: Infinity, repeatDelay: 1.7 }}
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white/50 blur-sm"
+                />
+              )}
+            </motion.div>
+          </div>
+        ))}
+      </AnimatePresence>
+
+      {/* P-N Junction Device */}
+      <div className="relative mt-20 w-4/5 h-20 rounded-xl overflow-hidden shadow-2xl z-10 border border-white/10 group">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900" />
+        
+        {/* N-Type Layer */}
+        <div className={cn(
+          "h-1/3 w-full flex items-center justify-center border-b border-white/5 transition-colors",
+          theme === 'dark' ? "bg-blue-600/10" : "bg-blue-500/5"
+        )}>
+          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-blue-400/40">N-Type Layer</span>
+        </div>
+
+        {/* Depletion Region (P-N Junction) */}
+        <div className={cn(
+          "h-1/3 w-full flex items-center justify-center border-b border-white/5 relative",
+          theme === 'dark' ? "bg-slate-700/50" : "bg-slate-200/50"
+        )}>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-white/5 to-red-500/5" />
+          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-white/20">Depletion Region</span>
+        </div>
+
+        {/* P-Type Layer */}
+        <div className={cn(
+          "h-1/3 w-full flex items-center justify-center transition-colors",
+          theme === 'dark' ? "bg-red-600/10" : "bg-red-500/5"
+        )}>
+          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-red-400/40">P-Type Layer</span>
+        </div>
+
+        {/* Gloss Effect */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none" />
+      </div>
+
+      {/* Realistic Electron Flow */}
+      {isGenerating && (
+        <div className="absolute inset-x-0 bottom-24 z-20 flex justify-center items-center pointer-events-none">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <motion.div
+              key={`carrier-${i}`}
+              initial={{ x: (i - 4) * 20, y: 0, opacity: 0 }}
+              animate={{ 
+                x: 150, 
+                opacity: [0, 1, 0] 
+              }}
+              transition={{ 
+                duration: 2.5, 
+                repeat: Infinity, 
+                delay: i * 0.4 
+              }}
+              className="absolute w-1.5 h-1.5 rounded-full bg-blue-300 shadow-[0_0_10px_#60a5fa] border border-white/20"
             />
           ))}
-        </AnimatePresence>
+        </div>
       )}
 
-      {/* Labels */}
-      <div className="absolute top-4 left-4 flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <div className={cn("w-2 h-2 rounded-full", isGenerating ? "bg-yellow-400" : "bg-blue-400/30")} />
-          <span className="text-[8px] font-bold text-white/40 tracking-wider">PHOTONS</span>
+      {/* Overlay Status */}
+      {!isGenerating && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-[2px] z-30"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="p-3 rounded-full bg-red-500/10 border border-red-500/20 shadow-lg">
+              <AlertCircle className="w-6 h-6 text-red-500" />
+            </div>
+            <p className="text-red-500 text-[10px] font-bold px-4 py-1.5 bg-red-500/10 rounded-full uppercase tracking-widest border border-red-500/20 shadow-sm animate-pulse text-center">
+              Insufficient Energy<br/>
+              <span className="text-[8px] opacity-60">E_photon {'<'} E_gap</span>
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Status Bar */}
+      <div className="absolute bottom-3 left-4 right-4 flex justify-between items-center z-40">
+        <div className="flex items-center gap-3">
+           <div className="flex -space-x-1">
+              <div className="w-2 h-2 rounded-full bg-blue-400 border border-white/20 shadow-[0_0_5px_#60a5fa]" />
+              <div className="w-2 h-2 rounded-full bg-red-400 border border-white/20 opacity-50" />
+           </div>
+           <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase">E-H Pair</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_5px_rgba(30,144,255,1)]" />
-          <span className="text-[8px] font-bold text-white/40 tracking-wider">ELECTRONS</span>
+        <div className="text-[8px] font-black text-white/20 tracking-[0.2em] uppercase bg-white/5 px-2 py-1 rounded">
+          Simulation ID: 887-A
         </div>
       </div>
-      
-      {!isGenerating && (
-        <div className="absolute inset-0 flex items-center justify-center bg-red-500/5 backdrop-blur-[1px] z-30">
-          <p className="text-red-500 text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full uppercase tracking-tighter">Threshold not met</p>
-        </div>
-      )}
+    </div>
+  );
+}
+
+function EfficiencyDisplayer({ value, theme }: { value: number, theme: Theme }) {
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center">
+      <svg className="w-40 h-40 transform -rotate-90">
+        <circle
+          cx="80"
+          cy="80"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="8"
+          fill="transparent"
+          className={theme === 'dark' ? "text-white/5" : "text-slate-100"}
+        />
+        <motion.circle
+          cx="80"
+          cy="80"
+          r={radius}
+          stroke="#3b82f6"
+          strokeWidth="8"
+          fill="transparent"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className="text-3xl font-bold font-mono text-blue-500">{value.toFixed(1)}%</span>
+        <span className={cn(
+          "text-[9px] font-bold uppercase tracking-widest",
+          theme === 'dark' ? "text-white/30" : "text-slate-400"
+        )}>Efficiency</span>
+      </div>
     </div>
   );
 }
